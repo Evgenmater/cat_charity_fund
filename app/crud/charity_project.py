@@ -12,18 +12,18 @@ from app.schemas.charity_project import CharityProjectCreate
 # которые аналогичные ниже закомментированным функциям, кроме одного метода.
 class CRUDCharityProject(CRUDBase):
 
-    async def create_him(
+    async def create_project(
         self,
         new_project: CharityProjectCreate,
         session: AsyncSession,
     ) -> CharityProject:
         new_project_data = new_project.dict()
         new_project_data['create_date'] = datetime.now()
-        db_room = CharityProject(**new_project_data)
-        session.add(db_room)
+        db_project = CharityProject(**new_project_data)
+        session.add(db_project)
         await session.commit()
-        await session.refresh(db_room)
-        return db_room
+        await session.refresh(db_project)
+        return db_project
 
 
 # Объект crud наследуем уже не от CRUDBase,

@@ -15,7 +15,7 @@ class DonationCreate(DonateBase):
 
 class DonationDB(DonateBase):
     id: int
-    created_date: datetime
+    create_date: datetime
 
     class Config:
         orm_mode = True

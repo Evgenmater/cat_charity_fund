@@ -26,7 +26,7 @@ async def create_charity_project(
     Только для суперюзеров.\n
     Создает благотворительный проект.
     """
-    create_new_project = await charity_project_crud.create_him(
+    create_new_project = await charity_project_crud.create_project(
         new_project=charity_project, session=session
     )
     # Создаём метод, который будет проверять при открытии нового проекта, есть ли пожертвование в фонде

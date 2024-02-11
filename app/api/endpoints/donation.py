@@ -10,6 +10,7 @@ from app.schemas.donation import (
 )
 from app.core.user import current_user
 from app.models import User
+from app.services.donation import investment_process
 
 router = APIRouter()
 
@@ -20,14 +21,17 @@ router = APIRouter()
     response_model_exclude_none=True,
 )
 async def create_donation(
-    charity_project: DonationCreate,
+    donation: DonationCreate,
+    user: User = Depends(current_user),
     session: AsyncSession = Depends(get_async_session),
 ):
     """Сделать пожертвование."""
-    create_new_project = await donation_crud.create_him(
-        obj_in=charity_project, session=session
+    # Создаём пожертвоние create_new_donation,
+    create_new_donation = await donation_crud.create_donation(
+        new_donation=donation, user=user, session=session
     )
-    # Создаём пожертвоние,
+    
+    await investment_process(user=user, session=session)
     # далее нужен метод, в котором будет:
     # 1) Проверять на наличие открытых проектов fully_invested
     # 2) Если нету открытых проектов, то
@@ -37,7 +41,7 @@ async def create_donation(
     #       а) если у пользователя больше или равно суммы для закрытия, то добавляем нужную сумму(вычитаем у пользователя сумму),
     #          закрываем проект и если сумма остается, то добавляем в следующий открытый проект,
     #       б) если следующего проекта нету, то оставляем сумму у в фонде(у пользователя)
-    return create_new_project
+    return create_new_donation
 
 
 @router.get(
@@ -70,4 +74,5 @@ async def get_user_donations(
     my_donations = await donation_crud.get_my_donations(
         user=user, session=session
     )
+    await investment_process(user=user, session=session)
     return my_donations

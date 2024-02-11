@@ -2,6 +2,7 @@
 
 # # from fastapi.encoders import jsonable_encoder
 from datetime import datetime
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,7 +19,7 @@ class CRUDDonation(CRUDBase):
         session: AsyncSession,
     ) -> list[Donation]:
         """
-        Возвращать список объектов Reservation,
+        Возвращать список объектов Donation,
         связанных с пользователем, выполняющим запрос
         """
         user_donations = await session.execute(
@@ -30,20 +31,23 @@ class CRUDDonation(CRUDBase):
             )
         )
         user_donations = user_donations.scalars().all()
+
         return user_donations
 
-    async def create_him(
+    async def create_donation(
         self,
-        new_project: DonationCreate,
+        new_donation: DonationCreate,
+        user: User,
         session: AsyncSession,
     ) -> Donation:
-        new_project_data = new_project.dict()
-        new_project_data['create_date'] = datetime.now()
-        db_room = Donation(**new_project_data)
-        session.add(db_room)
+        new_donation_data = new_donation.dict()
+        new_donation_data.update(create_date=datetime.now(), user_id=user.id)
+        db_donation = Donation(**new_donation_data)
+        session.add(db_donation)
         await session.commit()
-        await session.refresh(db_room)
-        return db_room
+        await session.refresh(db_donation)
+
+        return db_donation
 
 
 donation_crud = CRUDDonation(Donation)
