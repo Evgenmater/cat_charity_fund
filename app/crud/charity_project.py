@@ -1,32 +1,41 @@
-# from typing import Optional
-from datetime import datetime
-# # from fastapi.encoders import jsonable_encoder
-# from sqlalchemy import select
+from typing import Optional
+
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.crud.base import CRUDBase
 from app.models.charity_project import CharityProject
-from app.schemas.charity_project import CharityProjectCreate
 
 
-# Создаем новый класс, унаследованный от CRUDBase. В нём описаны методы,
-# которые аналогичные ниже закомментированным функциям, кроме одного метода.
 class CRUDCharityProject(CRUDBase):
 
-    async def create_project(
+    async def get_charity_project_id_by_name(
         self,
-        new_project: CharityProjectCreate,
+        project_name: str,
         session: AsyncSession,
-    ) -> CharityProject:
-        new_project_data = new_project.dict()
-        new_project_data['create_date'] = datetime.now()
-        db_project = CharityProject(**new_project_data)
-        session.add(db_project)
-        await session.commit()
-        await session.refresh(db_project)
-        return db_project
+    ) -> Optional[int]:
+        """Метод для поиска в БД переданного имени."""
+        db_project_name_id = await session.execute(
+            select(CharityProject.id).where(
+                CharityProject.name == project_name
+            )
+        )
+        return db_project_name_id.scalars().first()
+
+    async def get_project_id_by_full_amount(
+        self,
+        project_full_amount: int,
+        session: AsyncSession,
+    ) -> Optional[int]:
+        """
+        Метод для поиска в БД внесённой суммы, которая больше требуемой суммы.
+        """
+        db_project_full_amount_id = await session.execute(
+            select(CharityProject.id).where(
+                CharityProject.invested_amount > project_full_amount
+            )
+        )
+        return db_project_full_amount_id.scalars().first()
 
 
-# Объект crud наследуем уже не от CRUDBase,
-# а от только что созданного класса CRUDCharityProject, для использования доп.
-# метода. Для инициализации передаем модель, как и в CRUDBase.
 charity_project_crud = CRUDCharityProject(CharityProject)

@@ -6,8 +6,6 @@ from app.api.endpoints import (
 )
 
 main_router = APIRouter()
-# Указываем префикс и теги для роутеров в методе include_router();
-# добавляем параметры и для meeting_room_router, и для reservation_router.
 main_router.include_router(
     project_router, prefix='/charity_project', tags=['Charity Project']
 )

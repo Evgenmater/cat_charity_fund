@@ -1,14 +1,18 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.api.validators import check_charity_project_exists
 
+from app.api.validators import (
+    check_cash_in_project, check_closed_project,
+    check_name_duplicate, check_full_amount_cash,
+)
 from app.core.db import get_async_session
-# from app.core.user import current_superuser
+from app.core.user import current_superuser
 from app.crud.charity_project import charity_project_crud
+from app.models import Donation
 from app.schemas.charity_project import (
     CharityProjectCreate, CharityProjectDB, CharityProjectUpdate
 )
-
+from app.services.investment import investment_process
 router = APIRouter()
 
 
@@ -16,7 +20,7 @@ router = APIRouter()
     '/',
     response_model=CharityProjectDB,
     response_model_exclude_none=True,
-    # dependencies=[Depends(current_superuser)],
+    dependencies=[Depends(current_superuser)],
 )
 async def create_charity_project(
     charity_project: CharityProjectCreate,
@@ -26,14 +30,17 @@ async def create_charity_project(
     Только для суперюзеров.\n
     Создает благотворительный проект.
     """
-    create_new_project = await charity_project_crud.create_project(
-        new_project=charity_project, session=session
+    await check_name_duplicate(
+        project_name=charity_project.name, session=session
     )
-    # Создаём метод, который будет проверять при открытии нового проекта, есть ли пожертвование в фонде
-    # - если пожертвования есть, то проверяем какую сумму нужно до закрытия проекта
-    #       а) если у пожертвования больше или равно суммы для закрытия, то добавляем нужную сумму(вычитаем у пользователя сумму)
-    #          закрываем проект и если сумма остается, то добавляем в следующий открытый проект,
-    #       б) если следующего проекта нету, то оставляем сумму у в фонде(у пользователя)
+    create_new_project = await charity_project_crud.create(
+        obj_in=charity_project, session=session
+    )
+
+    await investment_process(
+        db_obj=Donation, obj_in=create_new_project, session=session
+    )
+
     return create_new_project
 
 
@@ -47,17 +54,17 @@ async def get_all_charity_project(
 ):
     """Получает список всех проектов."""
     all_charity_project = await charity_project_crud.get_multi(session=session)
+
     return all_charity_project
 
 
 @router.patch(
     '/{project_id}',
     response_model=CharityProjectDB,
-    response_model_exclude_none=True,
-    # dependencies=[Depends(current_superuser)],
+    dependencies=[Depends(current_superuser)],
 )
 async def update_charity_project(
-    charity_project_id: int,
+    project_id: int,
     obj_in: CharityProjectUpdate,
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -66,29 +73,32 @@ async def update_charity_project(
     Закрытый проект нельзя редактировать,
     также нельзя установить требуемую сумму меньше уже вложенной.
     """
-    charity_project = await check_charity_project_exists(
-        charity_project_id=charity_project_id, session=session
+    charity_project = await check_closed_project(
+        project_id=project_id, session=session
     )
+    if obj_in.full_amount is not None:
+        await check_full_amount_cash(
+            project_full_amount=obj_in.full_amount, session=session
+        )
+    if obj_in.name is not None:
+        await check_name_duplicate(
+            project_name=obj_in.name, session=session
+        )
 
-    # if obj_in.name is not None:
-    #     # Если в запросе получено поле name — проверяем его на уникальность.
-    #     await check_name_duplicate(obj_in.name, session)
-
-    # Заменим вызов функции на вызов метода.
     charity_project = await charity_project_crud.update(
         db_obj=charity_project, obj_in=obj_in, session=session
     )
+
     return charity_project
 
 
 @router.delete(
-    '/{meeting_room_id}',
+    '/{project_id}',
     response_model=CharityProjectDB,
-    response_model_exclude_none=True,
-    # dependencies=[Depends(current_superuser)],
+    dependencies=[Depends(current_superuser)],
 )
 async def delete_charity_project(
-    charity_project_id: int,
+    project_id: int,
     session: AsyncSession = Depends(get_async_session),
 ):
     """
@@ -96,10 +106,12 @@ async def delete_charity_project(
     Удаляет проект. Нельзя удалить проект,
     в который уже были инвестированы средства, его можно только закрыть.
     """
-    charity_project = await check_charity_project_exists(
-        charity_project_id=charity_project_id, session=session
+    check_charity_project = await check_cash_in_project(
+        project_id=project_id, session=session
     )
+
     charity_project = await charity_project_crud.remove(
-        db_obj=charity_project, session=session
+        db_obj=check_charity_project, session=session
     )
+
     return charity_project
