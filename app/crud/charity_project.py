@@ -22,20 +22,5 @@ class CRUDCharityProject(CRUDBase):
         )
         return db_project_name_id.scalars().first()
 
-    async def get_project_id_by_full_amount(
-        self,
-        project_full_amount: int,
-        session: AsyncSession,
-    ) -> Optional[int]:
-        """
-        Метод для поиска в БД внесённой суммы, которая больше требуемой суммы.
-        """
-        db_project_full_amount_id = await session.execute(
-            select(CharityProject.id).where(
-                CharityProject.invested_amount > project_full_amount
-            )
-        )
-        return db_project_full_amount_id.scalars().first()
-
 
 charity_project_crud = CRUDCharityProject(CharityProject)

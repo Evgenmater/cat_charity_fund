@@ -2,6 +2,9 @@ from typing import Optional
 
 from pydantic import BaseSettings, EmailStr
 
+DEFAULT_AMOUNT = 0
+MAX_LENGTH = 100
+
 
 class Settings(BaseSettings):
     app_title: str = 'Благотворительный фонд поддержки котиков'

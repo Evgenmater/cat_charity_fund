@@ -3,12 +3,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 from app.core.db import get_async_session
-from app.core.user import current_superuser
+from app.core.user import current_superuser, current_user
 from app.crud.donation import donation_crud
 from app.schemas.donation import (
     DonationAdminDB, DonationCreate, DonationDB
 )
-from app.core.user import current_user
 from app.models import User, CharityProject
 from app.services.investment import investment_process
 
@@ -19,6 +18,8 @@ router = APIRouter()
     '/',
     response_model=DonationDB,
     response_model_exclude_none=True,
+    # dependencies=[Depends(current_user)],
+    # Оставлю это здесь для напоминания моего вопроса в Пачке=)
 )
 async def create_donation(
     donation: DonationCreate,
@@ -65,7 +66,7 @@ async def get_user_donations(
     session: AsyncSession = Depends(get_async_session),
 ):
     """Получить список моих пожертвований."""
-    my_donations = await donation_crud.get_my_donations(
+    my_donations = await donation_crud.get_user_donations(
         user=user, session=session
     )
 

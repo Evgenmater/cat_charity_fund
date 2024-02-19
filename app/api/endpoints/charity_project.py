@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.validators import (
     check_cash_in_project, check_closed_project,
-    check_name_duplicate, check_full_amount_cash,
+    check_name_duplicate, check_full_amount_cash, check_name_empty_and_length,
 )
 from app.core.db import get_async_session
 from app.core.user import current_superuser
@@ -30,6 +30,9 @@ async def create_charity_project(
     Только для суперюзеров.\n
     Создает благотворительный проект.
     """
+    await check_name_empty_and_length(
+        project_name=charity_project.name, session=session
+    )
     await check_name_duplicate(
         project_name=charity_project.name, session=session
     )
@@ -73,16 +76,23 @@ async def update_charity_project(
     Закрытый проект нельзя редактировать,
     также нельзя установить требуемую сумму меньше уже вложенной.
     """
+    if obj_in.name is not None:
+        await check_name_empty_and_length(
+            project_name=obj_in.name, session=session
+        )
+        await check_name_duplicate(
+            project_name=obj_in.name, session=session
+        )
+
     charity_project = await check_closed_project(
         project_id=project_id, session=session
     )
+
     if obj_in.full_amount is not None:
         await check_full_amount_cash(
-            project_full_amount=obj_in.full_amount, session=session
-        )
-    if obj_in.name is not None:
-        await check_name_duplicate(
-            project_name=obj_in.name, session=session
+            project_full_amount=obj_in.full_amount,
+            charity_project=charity_project,
+            session=session,
         )
 
     charity_project = await charity_project_crud.update(

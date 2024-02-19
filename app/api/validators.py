@@ -3,11 +3,9 @@ from http import HTTPStatus
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import MAX_LENGTH
 from app.crud.charity_project import charity_project_crud
 from app.models import CharityProject
-
-MIN_LENGTH = 0
-MAX_LENGTH = 100
 
 
 async def check_charity_project_exists(
@@ -26,6 +24,19 @@ async def check_charity_project_exists(
     return charity_project
 
 
+async def check_name_empty_and_length(
+    project_name: str,
+    session: AsyncSession,
+) -> None:
+    """Проверка, на пустое и максимальное значение имени."""
+    deleting_empty_string = project_name.strip()
+    if not deleting_empty_string or len(project_name) > MAX_LENGTH:
+        raise HTTPException(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+            detail='name не должен быть пустым или более 100 символов!',
+        )
+
+
 async def check_name_duplicate(
     project_name: str,
     session: AsyncSession,
@@ -37,11 +48,6 @@ async def check_name_duplicate(
     charity_project = await charity_project_crud.get_charity_project_id_by_name(
         project_name=project_name, session=session
     )
-    if len(''.join(project_name.split())) == MIN_LENGTH or len(project_name) > MAX_LENGTH:
-        raise HTTPException(
-            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
-            detail='name не должен быть пустым или более 100 символов!',
-        )
     if charity_project is not None:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
@@ -89,15 +95,13 @@ async def check_closed_project(
 
 async def check_full_amount_cash(
     project_full_amount: CharityProject,
+    charity_project: CharityProject,
     session: AsyncSession,
-) -> CharityProject:
+) -> None:
     """
     Проверка на изменение требуемой суммы проекта.
     """
-    charity_project = await charity_project_crud.get_project_id_by_full_amount(
-        project_full_amount=project_full_amount, session=session
-    )
-    if charity_project is not None:
+    if project_full_amount < charity_project.invested_amount:
         raise HTTPException(
             status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
             detail='Запрещено изменять сумму меньше внесённой суммы на проекте!',
